@@ -15,7 +15,6 @@ class Courier(models.Model):
     id = models.IntegerField(primary_key=True, unique=True, null=False, blank=False)
     type = models.CharField(choices=TYPES_WEIGHT, null=False, blank=False, max_length=10)
     regions = models.JSONField(null=False, blank=False)
-    working_hours = models.DurationField(null=False, blank=False)
 
     def is_foot_type(self):
         return self.type == self.TYPE_FOOT
@@ -31,7 +30,18 @@ class Order(models.Model):
     id = models.IntegerField(primary_key=True, unique=True, null=False, blank=False)
     weight = models.FloatField(null=False, blank=False)
     region = models.IntegerField(null=False, blank=False)
-    delivery_hours = models.DurationField(null=False, blank=False)
+
+
+class CourierWorkingHour(models.Model):
+    courier = models.ForeignKey(Courier, on_delete=models.CASCADE)
+    start_time = models.TimeField(blank=False, null=False)
+    end_time = models.TimeField(blank=False, null=False)
+
+
+class OrderDeliveryHour(models.Model):
+    order = models.ForeignKey(Order, on_delete=models.CASCADE)
+    start_time = models.TimeField(blank=False, null=False)
+    end_time = models.TimeField(blank=False, null=False)
 
 
 class CourierOrder(models.Model):
