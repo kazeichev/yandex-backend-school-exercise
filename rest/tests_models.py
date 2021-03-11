@@ -9,8 +9,8 @@ class CreateCourierTestCase(TestCase):
 
     def setUp(self) -> None:
         courier = Courier.objects.create(
-            id=3,
-            type=Courier.TYPE_BIKE,
+            courier_id=3,
+            courier_type=Courier.TYPE_BIKE,
             regions=[1, 2, 3]
         )
 
@@ -21,19 +21,19 @@ class CreateCourierTestCase(TestCase):
         )
 
     def test(self):
-        courier = Courier.objects.get(id=3)
+        courier = Courier.objects.get(courier_id=3)
         workingHours = CourierWorkingHour.objects.get(courier=courier)
 
-        TestCase.assertTrue(self, Courier.objects.filter(id=3).exists())
-        TestCase.assertTrue(self, CourierWorkingHour.objects.filter(courier=courier).exists())
+        self.assertTrue(Courier.objects.filter(courier_id=3).exists())
+        self.assertTrue(CourierWorkingHour.objects.filter(courier=courier).exists())
 
-        TestCase.assertEquals(self, [1, 2, 3], courier.regions)
-        TestCase.assertIn(self, 3, courier.regions)
+        self.assertEquals([1, 2, 3], courier.regions)
+        self.assertIn(3, courier.regions)
 
-        TestCase.assertTrue(self, courier.is_bike_type())
+        self.assertTrue(courier.is_bike_type())
 
-        TestCase.assertEqual(self, datetime.time(9, 0), workingHours.start_time)
-        TestCase.assertEqual(self, datetime.time(18, 0), workingHours.end_time)
+        self.assertEqual(datetime.time(9, 0), workingHours.start_time)
+        self.assertEqual(datetime.time(18, 0), workingHours.end_time)
 
 
 class CreateOrderTestCase(TestCase):
@@ -41,7 +41,7 @@ class CreateOrderTestCase(TestCase):
 
     def setUp(self) -> None:
         order = Order.objects.create(
-            id=5,
+            order_id=5,
             weight=3.7,
             region=3
         )
@@ -53,14 +53,44 @@ class CreateOrderTestCase(TestCase):
         )
 
     def test(self):
-        order = Order.objects.get(id=5)
+        order = Order.objects.get(order_id=5)
         deliveryHours = OrderDeliveryHour.objects.get(order=order)
 
-        TestCase.assertTrue(self, Order.objects.filter(id=5).exists())
-        TestCase.assertTrue(self, OrderDeliveryHour.objects.filter(order=order).exists())
+        self.assertTrue(Order.objects.filter(order_id=5).exists())
+        self.assertTrue(OrderDeliveryHour.objects.filter(order=order).exists())
 
-        TestCase.assertTrue(self, order.weight == 3.7)
-        TestCase.assertTrue(self, order.region == 3)
+        self.assertTrue(order.weight == 3.7)
+        self.assertTrue(order.region == 3)
 
-        TestCase.assertEqual(self, datetime.time(9, 0), deliveryHours.start_time)
-        TestCase.assertEqual(self, datetime.time(18, 0), deliveryHours.end_time)
+        self.assertEqual(datetime.time(9, 0), deliveryHours.start_time)
+        self.assertEqual(datetime.time(18, 0), deliveryHours.end_time)
+
+
+class CreateCourierOrderTestCase(TestCase):
+    """ Создание сущности Заказ Курьера """
+
+    def setUp(self) -> None:
+        courier = Courier.objects.create(
+            courier_id=3,
+            courier_type=Courier.TYPE_BIKE,
+            regions=[1, 2, 3]
+        )
+
+        order = Order.objects.create(
+            order_id=5,
+            weight=3.7,
+            region=3
+        )
+
+        CourierOrder.objects.create(
+            courier=courier,
+            order=order
+        )
+
+    def test(self):
+        courier = Courier.objects.get(courier_id=3)
+        order = Order.objects.get(order_id=5)
+
+        self.assertTrue(Courier.objects.filter(courier_id=3).exists())
+        self.assertTrue(Order.objects.filter(order_id=5).exists())
+        self.assertTrue(CourierOrder.objects.filter(order=order, courier=courier).exists())

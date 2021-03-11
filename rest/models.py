@@ -12,22 +12,22 @@ class Courier(models.Model):
         (TYPE_CAR, 50),
     ]
 
-    id = models.IntegerField(primary_key=True, unique=True, null=False, blank=False)
-    type = models.CharField(choices=TYPES_WEIGHT, null=False, blank=False, max_length=10)
+    courier_id = models.IntegerField(primary_key=True, unique=True, null=False, blank=False)
+    courier_type = models.CharField(choices=TYPES_WEIGHT, null=False, blank=False, max_length=10)
     regions = models.JSONField(null=False, blank=False)
 
     def is_foot_type(self):
-        return self.type == self.TYPE_FOOT
+        return self.courier_type == self.TYPE_FOOT
 
     def is_bike_type(self):
-        return self.type == self.TYPE_BIKE
+        return self.courier_type == self.TYPE_BIKE
 
     def is_car_type(self):
-        return self.type == self.TYPE_BIKE
+        return self.courier_type == self.TYPE_BIKE
 
 
 class Order(models.Model):
-    id = models.IntegerField(primary_key=True, unique=True, null=False, blank=False)
+    order_id = models.IntegerField(primary_key=True, unique=True, null=False, blank=False)
     weight = models.FloatField(null=False, blank=False)
     region = models.IntegerField(null=False, blank=False)
 
