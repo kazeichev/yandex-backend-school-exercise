@@ -25,6 +25,16 @@ class Courier(models.Model):
     def is_car_type(self):
         return self.courier_type == self.TYPE_BIKE
 
+    def get_max_weight(self):
+        return dict(self.TYPES_WEIGHT)[str(self.courier_type)]
+
+    def get_working_hours(self):
+        hours = []
+        for item in CourierWorkingHour.objects.filter(courier=self).all():
+            hours.append("{}-{}".format(item.start_time.strftime("%H:%M"), item.end_time.strftime("%H:%M")))
+
+        return hours
+
 
 class Order(models.Model):
     order_id = models.IntegerField(primary_key=True, unique=True, null=False, blank=False)
