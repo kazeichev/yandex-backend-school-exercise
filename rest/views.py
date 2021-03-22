@@ -2,6 +2,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 
+from rest.managers import OrderManager
 from rest.models import Courier
 from rest.serializers import CourierSerializer, OrderSerializer
 
@@ -77,3 +78,14 @@ def orders(request):
 
     except RuntimeError:
         return Response(status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(["POST"])
+def orders_assign(request):
+    try:
+        couriers_id = request.data['courier_id']
+        orders_to_assign = OrderManager.get_orders_to_assign(couriers_id)
+
+        return Response(OrderManager.assign_orders_to_courier(couriers_id, orders_to_assign), status=status.HTTP_200_OK)
+    except ValueError:
+        return Response(status=status.HTTP_400_BAD_REQUEST)

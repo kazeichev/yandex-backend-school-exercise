@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Sum
 
 
 class Courier(models.Model):
@@ -35,6 +36,14 @@ class Courier(models.Model):
 
         return hours
 
+    def get_free_weight(self):
+        assigned_orders_weight = CourierOrder.objects\
+            .filter(courier=self, complete_time__isnull=True)\
+            .values('order__weight')\
+            .aggregate(Sum('order__weight'))['order__weight__sum']
+
+        return max(0, self.get_max_weight() - (0 if assigned_orders_weight is None else assigned_orders_weight))
+
 
 class Order(models.Model):
     order_id = models.IntegerField(primary_key=True, unique=True, null=False, blank=False)
@@ -55,15 +64,7 @@ class OrderDeliveryHour(models.Model):
 
 
 class CourierOrder(models.Model):
-    STATUS_CREATED = 100
-    STATUS_COMPLETED = 200
-
     courier = models.ForeignKey(Courier, on_delete=models.CASCADE)
     order = models.ForeignKey(Order, on_delete=models.CASCADE)
-    status = models.SmallIntegerField(null=False, blank=False, default=STATUS_CREATED)
-
-    def is_created(self):
-        return self.status == self.STATUS_CREATED
-
-    def is_completed(self):
-        return self.status == self.STATUS_COMPLETED
+    assign_time = models.DateTimeField(blank=False, null=False)
+    complete_time = models.DateTimeField(blank=True, null=True)

@@ -1,14 +1,19 @@
+import datetime
+
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
+from rest.managers import OrderManager, CourierManager, CourierOrderManager
 from rest.models import Courier, CourierWorkingHour
 
 client = APIClient()
 
 
 class CreateCourierTestCase(TestCase):
+    """ Тестируем добавление курьеров """
+
     def setUp(self) -> None:
         self.valid_data = {
             "data": [
@@ -62,11 +67,7 @@ class CreateCourierTestCase(TestCase):
         self.assertEqual(response.data, {"couriers": [{"id": 1}, {"id": 2}]})
 
     def test_invalid_data(self):
-        Courier.objects.create(
-            courier_id=1,
-            courier_type=Courier.TYPE_FOOT,
-            regions=[1, 22, 30]
-        )
+        CourierManager.create(1, Courier.TYPE_FOOT, [1, 22, 30], ["09:00-12:00"])
 
         response = client.post(reverse("couriers"), self.invalid_data, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -83,18 +84,10 @@ class CreateCourierTestCase(TestCase):
 
 
 class PatchCourierTestCase(TestCase):
-    def setUp(self) -> None:
-        self.courier = Courier.objects.create(
-            courier_id=1,
-            courier_type=Courier.TYPE_FOOT,
-            regions=[1, 22, 30]
-        )
+    """ Тестируем обновление курьера по его ID """
 
-        CourierWorkingHour.objects.create(
-            courier=self.courier,
-            start_time="09:00",
-            end_time="12:00"
-        )
+    def setUp(self) -> None:
+        self.courier = CourierManager.create(1, Courier.TYPE_FOOT, [1, 22, 30], ["09:00-12:00"])
 
         self.test_valid_data_1 = {
             "courier_type": Courier.TYPE_BIKE
@@ -154,6 +147,8 @@ class PatchCourierTestCase(TestCase):
 
 
 class CreateOrderTestCase(TestCase):
+    """ Тестируем добавление заказов """
+
     def setUp(self) -> None:
         self.valid_data = {
             "data": [
@@ -199,3 +194,62 @@ class CreateOrderTestCase(TestCase):
                 "orders": [{"id": 1}]
             }
         })
+
+
+class AssignOrdersTestCase(TestCase):
+    """ Тестируем назначение заказов курьерам """
+
+    def setUp(self) -> None:
+        self.assign_time = datetime.datetime.now()
+
+        self.order_1 = OrderManager.create(1, 4, 1, ["09:00-12:00", "15:00-20:00"])
+        self.order_2 = OrderManager.create(2, 2.5, 22, ["09:00-22:00"])
+        self.order_3 = OrderManager.create(3, 3.5, 30, ["09:00-12:00"])
+        self.order_4 = OrderManager.create(4, 2, 1, ["09:00-12:00"])
+        self.order_5 = OrderManager.create(5, 8, 2, ["09:00-15:00"])
+
+        self.courier = CourierManager.create(1, Courier.TYPE_FOOT, [1, 22, 30], ["09:00-12:00", "14:00-20:00"])
+
+    def test_without_assigned_orders(self):
+        response = client.post(reverse("orders_assign"), {"courier_id": 1})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['orders'], [{"id": 1}, {"id": 3}, {"id": 2}])
+
+    def test_with_assigned_orders(self):
+        order_time = datetime.datetime.now()
+        CourierOrderManager.create(self.courier, self.order_1, order_time)
+        response = client.post(reverse("orders_assign"), {"courier_id": 1})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['orders'], [{"id": 3}, {"id": 2}])
+        self.assertEqual(response.data['assign_time'], order_time.isoformat())
+
+    def test_with_completed_orders(self):
+        first_order_time = datetime.datetime.now().isoformat()
+        CourierOrderManager.create(self.courier, self.order_2, first_order_time,
+                                   datetime.datetime.now() + datetime.timedelta(hours=1))
+
+        response = client.post(reverse("orders_assign"), {"courier_id": 1})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['orders'], [{"id": 1}, {"id": 3}, {"id": 4}])
+        self.assertNotEqual(response.data['assign_time'], first_order_time)
+
+    def test_without_free_weight(self):
+        CourierOrderManager.create(self.courier, self.order_1, datetime.datetime.now())
+        CourierOrderManager.create(self.courier, self.order_2, datetime.datetime.now())
+        CourierOrderManager.create(self.courier, self.order_3, datetime.datetime.now())
+
+        response = client.post(reverse("orders_assign"), {"courier_id": 1})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, {"orders": []})
+
+    def test_assign_to_several_couriers(self):
+        self.courier_2 = CourierManager.create(2, Courier.TYPE_BIKE, [22, 50], ["09:00-14:00"])
+        CourierOrderManager.create(self.courier_2, self.order_2)
+
+        response = client.post(reverse("orders_assign"), {"courier_id": 1})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['orders'], [{"id": 1}, {"id": 3}, {"id": 4}])
+
+    def test_incorrect_courier_id(self):
+        response = client.post(reverse("orders_assign"), {"courier_id": 3})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

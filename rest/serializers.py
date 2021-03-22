@@ -2,7 +2,8 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework.validators import UniqueValidator
 
-from rest.models import Courier, CourierWorkingHour, Order, OrderDeliveryHour
+from rest.managers import OrderManager, CourierManager
+from rest.models import Courier, CourierWorkingHour, Order
 
 
 class CourierSerializer(serializers.ModelSerializer):
@@ -26,19 +27,12 @@ class CourierSerializer(serializers.ModelSerializer):
         return data
 
     def create(self, validated_data):
-        courier = Courier.objects.create(
-            courier_id=validated_data.get('courier_id'),
-            courier_type=validated_data.get('courier_type'),
-            regions=validated_data.get('regions')
+        courier = CourierManager.create(
+            validated_data.get('courier_id'),
+            validated_data.get('courier_type'),
+            validated_data.get('regions'),
+            validated_data.get('working_hours')
         )
-
-        for time in validated_data.get('working_hours'):
-            hours = time.split("-")
-            CourierWorkingHour.objects.create(
-                courier=courier,
-                start_time=hours[0],
-                end_time=hours[1]
-            )
 
         return courier
 
@@ -83,18 +77,11 @@ class OrderSerializer(serializers.ModelSerializer):
         return data
 
     def create(self, validated_data):
-        order = Order.objects.create(
-            order_id=validated_data.get('order_id'),
-            weight=validated_data.get('weight'),
-            region=validated_data.get('region')
+        order = OrderManager.create(
+            validated_data.get('order_id'),
+            validated_data.get('weight'),
+            validated_data.get('region'),
+            validated_data.get('delivery_hours')
         )
-
-        for time in validated_data.get('delivery_hours'):
-            hours = time.split("-")
-            OrderDeliveryHour.objects.create(
-                order=order,
-                start_time=hours[0],
-                end_time=hours[1]
-            )
 
         return order

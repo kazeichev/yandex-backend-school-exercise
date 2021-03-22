@@ -1,6 +1,8 @@
 import datetime
 
 from django.test import TestCase
+
+from rest.managers import CourierOrderManager, CourierManager, OrderManager
 from rest.models import Courier, Order, CourierOrder, CourierWorkingHour, OrderDeliveryHour
 
 
@@ -8,17 +10,7 @@ class CreateCourierTestCase(TestCase):
     """ Создание сущности Курьер """
 
     def setUp(self) -> None:
-        courier = Courier.objects.create(
-            courier_id=3,
-            courier_type=Courier.TYPE_BIKE,
-            regions=[1, 2, 3]
-        )
-
-        CourierWorkingHour.objects.create(
-            courier=courier,
-            start_time="09:00",
-            end_time="18:00"
-        )
+        CourierManager.create(3, Courier.TYPE_BIKE, [1, 2, 3], ["09:00-18:00"])
 
     def test(self):
         courier = Courier.objects.get(courier_id=3)
@@ -40,17 +32,7 @@ class CreateOrderTestCase(TestCase):
     """ Создание сущности Заказ """
 
     def setUp(self) -> None:
-        order = Order.objects.create(
-            order_id=5,
-            weight=3.7,
-            region=3
-        )
-
-        OrderDeliveryHour.objects.create(
-            order=order,
-            start_time="09:00",
-            end_time="18:00"
-        )
+        OrderManager.create(5, 3.7, 3, ["09:00-18:00"])
 
     def test(self):
         order = Order.objects.get(order_id=5)
@@ -70,22 +52,10 @@ class CreateCourierOrderTestCase(TestCase):
     """ Создание сущности Заказ Курьера """
 
     def setUp(self) -> None:
-        courier = Courier.objects.create(
-            courier_id=3,
-            courier_type=Courier.TYPE_BIKE,
-            regions=[1, 2, 3]
-        )
+        courier = CourierManager.create(3, Courier.TYPE_BIKE, [1, 2, 3], ["09:00-18:00"])
+        order = OrderManager.create(5, 3.7, 3, ["09:00-12:00"])
 
-        order = Order.objects.create(
-            order_id=5,
-            weight=3.7,
-            region=3
-        )
-
-        CourierOrder.objects.create(
-            courier=courier,
-            order=order
-        )
+        CourierOrderManager.create(courier, order)
 
     def test(self):
         courier = Courier.objects.get(courier_id=3)
