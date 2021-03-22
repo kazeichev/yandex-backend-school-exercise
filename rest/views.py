@@ -1,3 +1,4 @@
+from django.db import DatabaseError
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
@@ -88,4 +89,16 @@ def orders_assign(request):
 
         return Response(OrderManager.assign_orders_to_courier(couriers_id, orders_to_assign), status=status.HTTP_200_OK)
     except ValueError:
+        return Response(status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(["POST"])
+def orders_complete(request):
+    try:
+        courier_id = request.data['courier_id']
+        order_id = request.data['order_id']
+        complete_time = request.data['complete_time']
+
+        return Response(OrderManager.complete(courier_id, order_id, complete_time), status=status.HTTP_200_OK)
+    except DatabaseError:
         return Response(status=status.HTTP_400_BAD_REQUEST)

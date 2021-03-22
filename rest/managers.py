@@ -1,4 +1,6 @@
 from datetime import datetime
+
+from django.db import DatabaseError
 from django.db.models import Q
 from rest.models import Order, Courier, CourierWorkingHour, CourierOrder, OrderDeliveryHour
 
@@ -26,7 +28,7 @@ class CourierManager:
     def get_started_orders(courier_id):
         return CourierOrder.objects \
             .filter(courier=courier_id, assign_time__isnull=False, complete_time__isnull=True) \
-            .order_by('assign_time')\
+            .order_by('assign_time') \
             .all()
 
 
@@ -116,6 +118,18 @@ class OrderManager:
             }
 
         return response
+
+    @staticmethod
+    def complete(courier_id, order_id, complete_time):
+        try:
+            courier_order = CourierOrder.objects.get(courier_id=courier_id, order_id=order_id)
+        except Exception:
+            raise DatabaseError("Заказ с заданными параметрами не найден")
+
+        courier_order.complete_time = complete_time
+        courier_order.save()
+
+        return {"order_id": courier_order.order.order_id}
 
 
 class CourierOrderManager:

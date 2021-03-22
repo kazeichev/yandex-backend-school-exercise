@@ -253,3 +253,51 @@ class AssignOrdersTestCase(TestCase):
     def test_incorrect_courier_id(self):
         response = client.post(reverse("orders_assign"), {"courier_id": 3})
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class CompleteOrderTestCase(TestCase):
+    """ Тестируем завершение заказа """
+
+    def setUp(self) -> None:
+        self.assign_time = datetime.datetime.now()
+        self.order = OrderManager.create(1, 4, 1, ["09:00-12:00", "15:00-20:00"])
+        self.courier = CourierManager.create(1, Courier.TYPE_FOOT, [1, 22, 30], ["09:00-12:00", "14:00-20:00"])
+        self.courier_order = CourierOrderManager.create(self.courier, self.order, self.assign_time)
+
+    def test_successfully_complete_order(self):
+        response = client.post(reverse("orders_complete"), {
+            "courier_id": 1,
+            "order_id": 1,
+            "complete_time": datetime.datetime.now() + datetime.timedelta(hours=1)
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, {"order_id": 1})
+
+    def test_incorrect_data(self):
+        response = client.post(reverse("orders_complete"), {
+            "courier_id": 2,
+            "order_id": 1,
+            "complete_time": datetime.datetime.now() + datetime.timedelta(hours=1)
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIsNone(response.data)
+
+        response = client.post(reverse("orders_complete"), {
+            "courier_id": 1,
+            "order_id": 2,
+            "complete_time": datetime.datetime.now() + datetime.timedelta(hours=1)
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIsNone(response.data)
+
+        response = client.post(reverse("orders_complete"), {
+            "courier_id": 3,
+            "order_id": 3,
+            "complete_time": datetime.datetime.now() + datetime.timedelta(hours=1)
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIsNone(response.data)
