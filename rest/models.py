@@ -37,18 +37,38 @@ class Courier(models.Model):
         return hours
 
     def get_free_weight(self):
-        assigned_orders_weight = CourierOrder.objects\
-            .filter(courier=self, complete_time__isnull=True)\
-            .values('order__weight')\
+        assigned_orders_weight = CourierOrder.objects \
+            .filter(courier=self, complete_time__isnull=True) \
+            .values('order__weight') \
             .aggregate(Sum('order__weight'))['order__weight__sum']
 
         return max(0, self.get_max_weight() - (0 if assigned_orders_weight is None else assigned_orders_weight))
+
+    def get_coefficient(self):
+        if self.is_foot_type():
+            c = 2
+        elif self.is_bike_type():
+            c = 5
+        else:
+            c = 9
+
+        return c
+
+    def get_assigned_orders(self):
+        return CourierOrder.objects.filter(courier=self, complete_time__isnull=True)
 
 
 class Order(models.Model):
     order_id = models.IntegerField(primary_key=True, unique=True, null=False, blank=False)
     weight = models.FloatField(null=False, blank=False)
     region = models.IntegerField(null=False, blank=False)
+
+    def get_delivery_hours(self):
+        hours = []
+        for item in OrderDeliveryHour.objects.filter(order=self).all():
+            hours.append("{}-{}".format(item.start_time.strftime("%H:%M"), item.end_time.strftime("%H:%M")))
+
+        return hours
 
 
 class CourierWorkingHour(models.Model):
@@ -68,3 +88,12 @@ class CourierOrder(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE)
     assign_time = models.DateTimeField(blank=False, null=False)
     complete_time = models.DateTimeField(blank=True, null=True)
+    _cost = models.IntegerField(blank=True, null=True, db_column='cost', default=None)
+
+    @property
+    def cost(self):
+        return self._cost
+
+    @cost.setter
+    def cost(self, value):
+        self._cost = 500 * self.courier.get_coefficient()

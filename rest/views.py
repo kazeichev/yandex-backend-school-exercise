@@ -3,7 +3,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 
-from rest.managers import OrderManager
+from rest.managers import OrderManager, CourierManager
 from rest.models import Courier
 from rest.serializers import CourierSerializer, OrderSerializer
 
@@ -36,21 +36,31 @@ def couriers(request):
         return Response(status.HTTP_400_BAD_REQUEST)
 
 
-@api_view(['PATCH'])
-def patch_couriers(request, courier_id):  # TODO перераспределение заказов, если изменен тип, часы, регионы
-    courier = Courier.objects.get(courier_id=courier_id)
-    serializer = CourierSerializer(courier, data=request.data, partial=True)
+@api_view(['PATCH', 'GET'])
+def get_or_patch_courier(request, courier_id):
+    try:
+        courier = Courier.objects.get(courier_id=courier_id)
+    except Exception:
+        return Response(status=status.HTTP_404_NOT_FOUND)
 
-    if serializer.is_valid():
-        serializer.save()
-        return Response({
-            "courier_id": courier.courier_id,
-            "courier_type": courier.courier_type,
-            "regions": courier.regions,
-            "working_hours": courier.get_working_hours()
-        }, status=status.HTTP_200_OK)
+    if request.method == 'PATCH':
+        serializer = CourierSerializer(courier, data=request.data, partial=True)
 
-    return Response(status=status.HTTP_400_BAD_REQUEST)
+        if serializer.is_valid():
+            serializer.save()
+            CourierManager.reassign_orders(courier)
+
+            return Response({
+                "courier_id": courier.courier_id,
+                "courier_type": courier.courier_type,
+                "regions": courier.regions,
+                "working_hours": courier.get_working_hours()
+            }, status=status.HTTP_200_OK)
+
+        return Response(status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'GET':
+        return Response(CourierManager.get_info(courier), status.HTTP_200_OK)
 
 
 @api_view(["POST"])

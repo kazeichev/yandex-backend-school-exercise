@@ -31,6 +31,98 @@ class CourierManager:
             .order_by('assign_time') \
             .all()
 
+    @staticmethod
+    def get_info(courier):
+        info = {
+            "courier_id": courier.courier_id,
+            "courier_type": courier.courier_type,
+            "regions": courier.regions,
+            "working_hours": courier.get_working_hours(),
+            "earnings": 0,
+        }
+
+        orders_query = CourierOrder.objects \
+            .filter(courier_id=courier.courier_id, assign_time__isnull=False, complete_time__isnull=False) \
+            .values('order__region', 'assign_time', 'complete_time', '_cost') \
+            .order_by('order__region', 'assign_time', 'complete_time')
+
+        if orders_query.count() > 0:
+            orders_by_regions = {}
+            avg_time_per_region = {}
+
+            for order in orders_query:
+                info['earnings'] += order['_cost']
+
+                if order['order__region'] in orders_by_regions:
+                    orders_by_regions[order['order__region']].append({
+                        'assign_time': order['assign_time'],
+                        'complete_time': order['complete_time']
+                    })
+                else:
+                    orders_by_regions[order['order__region']] = [{
+                        'assign_time': order['assign_time'],
+                        'complete_time': order['complete_time']
+                    }]
+
+            for region in orders_by_regions:
+                assign_time = None
+                complete_time = None
+                count = 0
+                total_seconds = 0
+
+                for times in orders_by_regions[region]:
+                    if assign_time == times['assign_time']:
+                        total_seconds += (times['complete_time'] - complete_time).total_seconds()
+                        count += 1
+                        complete_time = times['complete_time']
+                    else:
+                        assign_time = times['assign_time']
+                        complete_time = times['complete_time']
+                        total_seconds += (times['complete_time'] - times['assign_time']).total_seconds()
+                        count += 1
+
+                avg_time_per_region[region] = total_seconds / count
+
+            info['rating'] = (60 * 60 - min(min(list(avg_time_per_region.values())), 60 * 60)) / (60 * 60) * 5
+
+        return info
+
+    @staticmethod
+    def reassign_orders(courier):
+        courier_orders = CourierOrder.objects \
+            .filter(courier=courier, complete_time__isnull=True) \
+            .order_by('-order__weight')
+
+        courier_working_hours = CourierWorkingHour.objects.filter(courier=courier).all()
+        courier_weight = courier.get_max_weight()
+
+        for courier_order in courier_orders:
+            order = courier_order.order
+
+            if courier_weight - order.weight < 0:
+                courier_order.delete()
+                continue
+
+            courier_weight -= order.weight
+
+            if order.region not in courier.regions:
+                courier_order.delete()
+                continue
+
+            is_deletable = None
+            for order_hours in OrderDeliveryHour.objects.filter(order=order):
+                for courier_hours in courier_working_hours:
+                    if (
+                            order_hours.start_time < courier_hours.start_time or order_hours.start_time > courier_hours.end_time) \
+                            and (
+                            order_hours.end_time < courier_hours.start_time or order_hours.end_time > courier_hours.end_time):
+                        is_deletable = True if is_deletable is None else is_deletable and True
+                    else:
+                        is_deletable = False if is_deletable is None else is_deletable and False
+
+            if is_deletable is not None and is_deletable:
+                courier_order.delete()
+
 
 class OrderManager:
     @staticmethod
@@ -139,5 +231,6 @@ class CourierOrderManager:
             courier=courier,
             order=order,
             assign_time=assign_time if assign_time is not None else datetime.now(),
-            complete_time=complete_time
+            complete_time=complete_time,
+            cost=None
         )
