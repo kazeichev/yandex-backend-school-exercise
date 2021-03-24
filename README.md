@@ -1,1 +1,12 @@
-# yandex-backend-school-exercies
+# REST-сервис на Python
+
+## Команды сервиса
+ - Для запуска сервиса выполнить команду `./up.sh`
+ - Для остановки сервиса выполнить команду `./down.sh`
+ - Для запуска тестов выполнить команду `./tests.sh`
+ 
+## Стек
+ - Docker
+ - Django 3.1
+ - Django Rest Framework 3.11
+ - Sqlite3
